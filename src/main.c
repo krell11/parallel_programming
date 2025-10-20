@@ -21,5 +21,5 @@ int main(int argc, char** argv){
            n, P.h, x[0], x[n/2], x[n-1]);
 
     free(x); free(b); fem_free(&P);
-    return 0;
+    return 0; // t
 }
