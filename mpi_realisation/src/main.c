@@ -8,7 +8,7 @@ int main(int argc, char** argv){
     MPI_Init(&argc, &argv);
     int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    size_t Ne = (argc>1) ? strtoull(argv[1], NULL, 10) : 200;  // число элементов
+    size_t Ne = (argc>1) ? strtoull(argv[1], NULL, 10) : 200;  
     int max_iter = (argc>2) ? atoi(argv[2]) : 20000;
     double tol   = (argc>3) ? atof(argv[3]) : 1e-8;
 
@@ -16,7 +16,6 @@ int main(int argc, char** argv){
     if (rank==0) {
         fem_init_poisson_1d(&P, Ne);
     }
-    // рассылаем параметры задачи простым способом
     MPI_Bcast(&P, sizeof(P), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     const size_t n = (P.n_nodes>=2)?(P.n_nodes-2):0;

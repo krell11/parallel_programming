@@ -3,8 +3,8 @@
 #include <stddef.h>
 
 typedef struct {
-    size_t n_nodes; // число узлов (включая граничные)
-    double h;       // шаг сетки
+    size_t n_nodes; 
+    double h;       
 } fem_problem_t;
 
 void fem_init_poisson_1d(fem_problem_t* p, size_t n_elements);

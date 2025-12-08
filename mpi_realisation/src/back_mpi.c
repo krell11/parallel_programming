@@ -22,7 +22,6 @@ static void make_counts_displs(size_t n, int size, int **counts_out, int **displ
     *displs_out = displs;
 }
 
-// MPI-версия Якоби для 1D Пуассона на внутренних узлах (n = n_nodes-2).
 int fem_solve_mpi_jacobi(const fem_problem_t* p,
                          const double* b_global,
                          double* x_global,
@@ -36,7 +35,6 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
     const size_t n = (p->n_nodes >= 2) ? (p->n_nodes - 2) : 0;
     if (n == 0) return 0;
 
-    // Раздаём правую часть b по процессам (Scatterv).
     int *counts = NULL, *displs = NULL;
     make_counts_displs(n, size, &counts, &displs);
     const int local_n = counts[rank];
@@ -50,7 +48,6 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
         return -2;
     }
 
-    // Scatterv b
     MPI_Scatterv(b_global, counts, displs, MPI_DOUBLE,
                  b_local, local_n, MPI_DOUBLE,
                  0, comm);
@@ -59,19 +56,15 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
     const double diag = 2.0 / h;
     const double off  = -1.0 / h;
 
-    // Соседи в 1D разбиении
     const int left  = (rank > 0)       ? rank-1 : MPI_PROC_NULL;
     const int right = (rank+1 < size)  ? rank+1 : MPI_PROC_NULL;
 
-    // Главный цикл итераций
     int stop = 0;
     for (int it = 0; it < max_iter; ++it) {
         if (stop) break;
 
-        // 1) обмен "гало" для x_old (значения соседних ячеек на границе)
         double halo_left_old = 0.0, halo_right_old = 0.0;
 
-        // отправляем левому свой первый, получаем от левого его последний
         if (local_n > 0) {
             MPI_Sendrecv(x_old, 1, MPI_DOUBLE, left,  100,
                          &halo_right_old, 1, MPI_DOUBLE, right, 100,
@@ -80,22 +73,17 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
                          &halo_left_old, 1, MPI_DOUBLE, left,  200,
                          comm, MPI_STATUS_IGNORE);
         } else {
-            // Процессы с local_n==0 участвуют в редукциях, но вычислений у них нет
         }
 
-        // 2) локально считаем x_new из x_old
         for (int i = 0; i < local_n; ++i) {
             double s = b_local[i];
-            // левый сосед
             double xl = (i > 0) ? x_old[i-1] : halo_left_old;
-            // правый сосед
             double xr = (i+1 < local_n) ? x_old[i+1] : halo_right_old;
             s -= off * xl;
             s -= off * xr;
             x_new[i] = s / diag;
         }
 
-        // 3) обмен "гало" уже для x_new — чтобы корректно посчитать невязку Kx_new - b
         double halo_left_new = 0.0, halo_right_new = 0.0;
         if (local_n > 0) {
             MPI_Sendrecv(x_new, 1, MPI_DOUBLE, left,  300,
@@ -106,7 +94,6 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
                          comm, MPI_STATUS_IGNORE);
         }
 
-        // 4) локальная невязка
         double r2_local = 0.0;
         for (int i = 0; i < local_n; ++i) {
             double xl = (i > 0) ? x_new[i-1] : halo_left_new;
@@ -116,25 +103,20 @@ int fem_solve_mpi_jacobi(const fem_problem_t* p,
             r2_local += ri * ri;
         }
 
-        // 5) глобальная норма и условие останова
         double r2_total = 0.0;
         MPI_Allreduce(&r2_local, &r2_total, 1, MPI_DOUBLE, MPI_SUM, comm);
         stop = (sqrt(r2_total) < tol);
 
-        // 6) копируем x_old <- x_new (Якоби) и продолжаем
         if (!stop && local_n > 0) {
             memcpy(x_old, x_new, sizeof(double)*(size_t)local_n);
         }
-        // Явный барьер не нужен: Allreduce уже синхронизирует.
     }
 
-    // Собираем решение на ранге 0 (Gatherv)
     if (x_global) {
         MPI_Gatherv(x_new, local_n, MPI_DOUBLE,
                     x_global, counts, displs, MPI_DOUBLE,
                     0, comm);
     } else {
-        // даже если x_global == NULL (на не-нулевых рангах), надо всё равно вызвать Gatherv
         MPI_Gatherv(x_new, local_n, MPI_DOUBLE,
                     NULL, counts, displs, MPI_DOUBLE,
                     0, comm);

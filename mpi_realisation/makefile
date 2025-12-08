@@ -3,7 +3,6 @@ MPICC   = mpicc
 CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude -I../pthreads_realisation/include
 LDFLAGS = -lm
 
-# общий core.c берём из pthreads-проекта
 SRC_CORE = ../pthreads_realisation/src/core.c
 
 SRC = $(SRC_CORE) src/back_mpi.c src/main.c
