@@ -113,7 +113,16 @@ def main():
     b_local = np.full(local_n, h, dtype=np.float64)
     x_local = np.zeros(local_n, dtype=np.float64)
     
+    comm.Barrier() 
+    t_start = MPI.Wtime()
+    
     fem_solve_mpi_jacobi(n_global, h, b_local, x_local, max_iter, tol, comm)
+
+    comm.Barrier() 
+    t_end = MPI.Wtime()
+
+    if rank == 0:
+        print(f"Solver finished in {t_end - t_start:.4f} seconds")
 
     if rank == 0:
         x_global = np.zeros(n_global, dtype=np.float64)
