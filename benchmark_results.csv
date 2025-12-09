@@ -1,7 +1,0 @@
-Type,Count,Time
-OpenMP,1,3.722
-OpenMP,2,2.2512
-OpenMP,4,1.7671
-Pthreads,1,3.6807
-Pthreads,2,3.5175
-Pthreads,4,5.3025
